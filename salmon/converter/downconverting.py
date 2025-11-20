@@ -19,9 +19,10 @@ FLAC_FOLDER_REGEX = re.compile(r"(24 ?bit )?FLAC", flags=re.IGNORECASE)
 def convert_folder(path, bit_depth=16, sample_rate=None):
     new_path = _generate_conversion_path_name(path)
     if sample_rate and bit_depth == 24:
+        # For 24-bit downconversion with sample rate, replace "FLAC" with "FLAC 24-XX"
         new_path = re.sub(
-            "FLAC",
-            f"24-{sample_rate / 1000:.0f}",
+            r"FLAC",
+            f"FLAC 24-{sample_rate / 1000:.0f}",
             new_path,
             flags=re.IGNORECASE,
         )
@@ -49,12 +50,18 @@ def _determine_files_actions(path):
 
 def _generate_conversion_path_name(path):
     foldername = os.path.basename(path)
-    if re.search("24 ?bit FLAC", foldername, flags=re.IGNORECASE):
+    # Handle new format: "FLAC 24-192" -> "FLAC" (for 16-bit conversion)
+    # The sample rate part will be replaced later if doing 24-bit downconversion
+    if re.search(r"FLAC 24-\d+", foldername, flags=re.IGNORECASE):
+        foldername = re.sub(r"FLAC 24-\d+", "FLAC", foldername, flags=re.IGNORECASE)
+    # Handle old format: "24bit FLAC" -> "FLAC"
+    elif re.search("24 ?bit FLAC", foldername, flags=re.IGNORECASE):
         foldername = re.sub("24 ?bit FLAC", "FLAC", foldername, flags=re.IGNORECASE)
-    elif re.search("FLAC", foldername, flags=re.IGNORECASE):
-        foldername = re.sub("FLAC", "16bit FLAC", foldername, flags=re.IGNORECASE)
-    else:
+    # If no FLAC in name, append it
+    elif not re.search("FLAC", foldername, flags=re.IGNORECASE):
         foldername += " [FLAC]"
+    # If just "FLAC" exists (16-bit source), keep it as is for 16-bit output
+    # Don't add "16bit FLAC" as that's not the desired format
 
     return os.path.join(os.path.dirname(path), foldername)
 
