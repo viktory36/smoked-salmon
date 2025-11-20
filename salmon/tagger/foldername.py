@@ -148,9 +148,9 @@ def _fix_format(metadata, keys, audio_info=None):
     Helpful for 24 bit FLAC and MP3 320/V0 stuff.
 
     For 24-bit FLAC files, includes sample rate in the format:
-    - 24-192 for 192kHz
-    - 24-96 for 96kHz
-    - 24-48 for 48kHz
+    - FLAC 24-192 for 192kHz
+    - FLAC 24-96 for 96kHz
+    - FLAC 24-48 for 48kHz
     For 16-bit FLAC files, uses just "FLAC"
     For MP3 files, uses just the encoding like "V0" or "320"
     
@@ -172,7 +172,7 @@ def _fix_format(metadata, keys, audio_info=None):
                     sample_rate = next(iter(audio_info.values()))["sample rate"]
                     # Round to nearest kHz (e.g., 192000 Hz -> 192 kHz)
                     sample_rate_khz = round(sample_rate / 1000)
-                    sub_metadata["format"] = f"24-{sample_rate_khz}"
+                    sub_metadata["format"] = f"FLAC 24-{sample_rate_khz}"
                 except (KeyError, StopIteration):
                     # Fallback if audio_info structure is unexpected
                     sub_metadata["format"] = "24bit FLAC"
