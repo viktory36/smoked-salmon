@@ -158,9 +158,10 @@ def _fix_format(metadata, keys, audio_info=None):
     if "format" in keys:
         if metadata["format"] == "FLAC" and metadata["encoding"] == "24bit Lossless":
             # Get sample rate from audio_info if available
-            if audio_info:
+            if audio_info and len(audio_info) > 0:
                 sample_rate = next(iter(audio_info.values()))["sample rate"]
-                sample_rate_khz = int(sample_rate / 1000)
+                # Round to nearest kHz for cleaner display
+                sample_rate_khz = round(sample_rate / 1000)
                 sub_metadata["format"] = f"24-{sample_rate_khz}"
             else:
                 # Fallback to old behavior if audio_info not provided
