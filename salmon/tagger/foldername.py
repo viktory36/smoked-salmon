@@ -158,11 +158,17 @@ def _fix_format(metadata, keys, audio_info=None):
     if "format" in keys:
         if metadata["format"] == "FLAC" and metadata["encoding"] == "24bit Lossless":
             # Get sample rate from audio_info if available
+            # Note: This takes the sample rate from the first track, which is safe
+            # because hybrid releases (mixed sample rates) are detected earlier in the flow
             if audio_info and len(audio_info) > 0:
-                sample_rate = next(iter(audio_info.values()))["sample rate"]
-                # Round to nearest kHz for cleaner display
-                sample_rate_khz = round(sample_rate / 1000)
-                sub_metadata["format"] = f"24-{sample_rate_khz}"
+                try:
+                    sample_rate = next(iter(audio_info.values()))["sample rate"]
+                    # Round to nearest kHz for cleaner display
+                    sample_rate_khz = round(sample_rate / 1000)
+                    sub_metadata["format"] = f"24-{sample_rate_khz}"
+                except (KeyError, StopIteration):
+                    # Fallback if audio_info structure is unexpected
+                    sub_metadata["format"] = "24bit FLAC"
             else:
                 # Fallback to old behavior if audio_info not provided
                 sub_metadata["format"] = "24bit FLAC"
