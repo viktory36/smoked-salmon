@@ -153,6 +153,12 @@ def _fix_format(metadata, keys, audio_info=None):
     - 24-48 for 48kHz
     For 16-bit FLAC files, uses just "FLAC"
     For MP3 files, uses just the encoding like "V0" or "320"
+    
+    Args:
+        metadata: Dictionary containing format, encoding, and encoding_vbr
+        keys: List of keys present in the folder template
+        audio_info: Optional dictionary mapping filenames to audio properties
+                   (sample rate in Hz, precision, etc.)
     """
     sub_metadata = copy(metadata)
     if "format" in keys:
@@ -162,8 +168,9 @@ def _fix_format(metadata, keys, audio_info=None):
             # because hybrid releases (mixed sample rates) are detected earlier in the flow
             if audio_info and len(audio_info) > 0:
                 try:
+                    # Sample rate is stored in Hz, convert to kHz for display
                     sample_rate = next(iter(audio_info.values()))["sample rate"]
-                    # Round to nearest kHz for cleaner display
+                    # Round to nearest kHz (e.g., 192000 Hz -> 192 kHz)
                     sample_rate_khz = round(sample_rate / 1000)
                     sub_metadata["format"] = f"24-{sample_rate_khz}"
                 except (KeyError, StopIteration):
