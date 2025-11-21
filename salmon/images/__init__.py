@@ -137,6 +137,18 @@ def upload_cover(cover_path):
             if not retry:
                 click.secho("Aborting cover upload.", fg="yellow")
                 return None
+        except requests.exceptions.RequestException as error:
+            # Catch all other requests-related errors (HTTPError, SSLError, ProxyError, etc.)
+            click.secho(" failed!", fg="red")
+            click.secho(f"\nHTTP request error while uploading cover to {cfg.image.cover_uploader}:", fg="red")
+            click.secho(f"  {type(error).__name__}: {error}", fg="red")
+            retry = click.confirm(
+                click.style("\nWould you like to retry the upload?", fg="magenta", bold=True),
+                default=True,
+            )
+            if not retry:
+                click.secho("Aborting cover upload.", fg="yellow")
+                return None
         except (ImageUploadFailed, ValueError) as error:
             click.secho(" failed!", fg="red")
             click.secho(f"\nImage Upload Failed: {error}", fg="red")
@@ -148,7 +160,7 @@ def upload_cover(cover_path):
                 click.secho("Aborting cover upload.", fg="yellow")
                 return None
         except Exception as error:
-            # Catch any other unexpected errors
+            # Catch any other unexpected errors (should rarely happen)
             click.secho(" failed!", fg="red")
             click.secho("\nUnexpected error while uploading cover:", fg="red")
             click.secho(f"  {type(error).__name__}: {error}", fg="red")
