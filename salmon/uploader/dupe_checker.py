@@ -162,12 +162,29 @@ def check_existing_group(gazelle_site, searchstrs, offer_deletion=True):
 
 def get_search_results(gazelle_site, searchstrs):
     results = []
-    tasks = [gazelle_site.request("browse", searchstr=searchstr) for searchstr in searchstrs]
-    for releases in loop.run_until_complete(asyncio.gather(*tasks)):
-        for release in releases["results"]:
-            if release not in results:
-                results.append(release)
-    return results
+    while True:
+        try:
+            tasks = [gazelle_site.request("browse", searchstr=searchstr) for searchstr in searchstrs]
+            for releases in loop.run_until_complete(asyncio.gather(*tasks)):
+                for release in releases["results"]:
+                    if release not in results:
+                        results.append(release)
+            return results
+        except click.Abort:
+            # User chose to abort in the retry prompt
+            raise
+        except Exception as error:
+            # This should rarely happen as the request() method has its own retry logic
+            # But if something slips through, give user a chance to retry
+            click.secho("\nError during dupe check search:", fg="red")
+            click.secho(f"  {type(error).__name__}: {error}", fg="red")
+            retry = click.confirm(
+                click.style("\nWould you like to retry the search?", fg="magenta", bold=True),
+                default=True,
+            )
+            if not retry:
+                click.secho("Aborting dupe check search.", fg="yellow")
+                raise click.Abort() from None
 
 
 def generate_dupe_check_searchstrs(artists, album, catno=None):
