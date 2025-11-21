@@ -500,7 +500,9 @@ def edit_metadata(
         tags = check_tags(path)
         if not metadata["scene"] and recompress:
             recompress_path(path)
-        path = rename_folder(path, metadata, auto_rename)
+        # Gather audio_info to pass to rename_folder for proper format naming
+        audio_info = gather_audio_info(path)
+        path = rename_folder(path, metadata, auto_rename, audio_info=audio_info)
         if not metadata["scene"]:
             rename_files(path, tags, metadata, auto_rename, spectral_ids, source)
         check_folder_structure(path, metadata["scene"])

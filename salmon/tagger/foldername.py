@@ -15,7 +15,7 @@ from salmon.constants import (
 from salmon.errors import UploadError
 
 
-def rename_folder(path, metadata, auto_rename, check=True):
+def rename_folder(path, metadata, auto_rename, check=True, audio_info=None):
     """
     Create a revised folder name from the new metadata and present it to the
     user. Have them decide whether or not to accept the folder name.
@@ -25,7 +25,7 @@ def rename_folder(path, metadata, auto_rename, check=True):
     the folder is copied to the download folder.
     """
     old_base = os.path.basename(path)
-    new_base = generate_folder_name(metadata)
+    new_base = generate_folder_name(metadata, audio_info)
     if metadata["scene"]:
         new_base = old_base
         auto_rename = True
@@ -110,7 +110,7 @@ def rename_folder(path, metadata, auto_rename, check=True):
     return new_path
 
 
-def generate_folder_name(metadata):
+def generate_folder_name(metadata, audio_info=None):
     """
     Fill in the values from the folder template using the metadata, then strip
     away the unnecessary keys.
@@ -122,7 +122,7 @@ def generate_folder_name(metadata):
         if not metadata.get(k):
             template = strip_template_keys(template, k)
             keys.remove(k)
-    sub_metadata = _fix_format(metadata, keys)
+    sub_metadata = _fix_format(metadata, keys, audio_info)
     return template.format(**{k: _sub_illegal_characters(sub_metadata[k]) for k in keys})
 
 
@@ -142,20 +142,50 @@ def _sub_illegal_characters(stri):
     return re.sub(BLACKLISTED_CHARS, cfg.upload.formatting.blacklisted_substitution, str(stri))
 
 
-def _fix_format(metadata, keys):
+def _fix_format(metadata, keys, audio_info=None):
     """
     Add abbreviated encoding to format key when the format is not 'FLAC'.
     Helpful for 24 bit FLAC and MP3 320/V0 stuff.
 
-    So far only 24 bit FLAC is supported, when I fix the script for MP3 i will add MP3 encodings.
+    For 24-bit FLAC files, includes sample rate in the format:
+    - FLAC 24-192 for 192kHz
+    - FLAC 24-96 for 96kHz
+    - FLAC 24-48 for 48kHz
+    For 16-bit FLAC files, uses just "FLAC"
+    For MP3 files, uses just the encoding like "V0" or "320"
+    
+    Args:
+        metadata: Dictionary containing format, encoding, and encoding_vbr
+        keys: List of keys present in the folder template
+        audio_info: Optional dictionary mapping filenames to audio properties
+                   (sample rate in Hz, precision, etc.)
     """
     sub_metadata = copy(metadata)
     if "format" in keys:
         if metadata["format"] == "FLAC" and metadata["encoding"] == "24bit Lossless":
-            sub_metadata["format"] = "24bit FLAC"
+            # Get sample rate from audio_info if available
+            # Note: This takes the sample rate from the first track, which is safe
+            # because hybrid releases (mixed sample rates) are detected earlier in the flow
+            if audio_info and len(audio_info) > 0:
+                try:
+                    # Sample rate is stored in Hz, convert to kHz for display
+                    sample_rate = next(iter(audio_info.values()))["sample rate"]
+                    # Round to nearest kHz (e.g., 192000 Hz -> 192 kHz)
+                    sample_rate_khz = round(sample_rate / 1000)
+                    sub_metadata["format"] = f"FLAC 24-{sample_rate_khz}"
+                except (KeyError, StopIteration):
+                    # Fallback if audio_info structure is unexpected
+                    sub_metadata["format"] = "24bit FLAC"
+            else:
+                # Fallback to old behavior if audio_info not provided
+                sub_metadata["format"] = "24bit FLAC"
+        elif metadata["format"] == "FLAC":
+            # 16-bit FLAC should just be "FLAC"
+            sub_metadata["format"] = "FLAC"
         elif metadata["format"] == "MP3":
+            # For MP3, just use the encoding (V0, 320, etc.) without "MP3" prefix
             enc = re.sub(r" \(VBR\)", "", str(metadata["encoding"]))
-            sub_metadata["format"] = f"MP3 {enc}"
+            sub_metadata["format"] = enc
             if metadata["encoding_vbr"]:
                 sub_metadata["format"] += " (VBR)"
         elif metadata["format"] == "AAC":

@@ -42,12 +42,19 @@ def _validate_folder_is_lossless(path):
 def _generate_transcode_path_name(path, bitrate):
     to_append = []
     foldername = os.path.basename(path)
-    if FLAC_FOLDER_REGEX.search(foldername):
+    
+    # Handle new format: "FLAC 24-192" or "FLAC" -> Replace with just bitrate (V0/320)
+    if re.search(r"FLAC 24-\d+", foldername, flags=re.IGNORECASE):
+        # New format with sample rate: "FLAC 24-192" -> just the bitrate
+        foldername = re.sub(r"FLAC 24-\d+", bitrate, foldername, flags=re.IGNORECASE)
+    elif FLAC_FOLDER_REGEX.search(foldername):
+        # Old format or simple FLAC
         if LOSSLESS_FOLDER_REGEX.search(foldername):
             foldername = FLAC_FOLDER_REGEX.sub("MP3", foldername)
             foldername = LOSSLESS_FOLDER_REGEX.sub(bitrate, foldername)
         else:
-            foldername = FLAC_FOLDER_REGEX.sub(f"MP3 {bitrate}", foldername)
+            # Replace "FLAC" or "24bit FLAC" with just the bitrate
+            foldername = FLAC_FOLDER_REGEX.sub(bitrate, foldername)
     else:
         if LOSSLESS_FOLDER_REGEX.search(foldername):
             foldername = LOSSLESS_FOLDER_REGEX.sub(bitrate, foldername)
