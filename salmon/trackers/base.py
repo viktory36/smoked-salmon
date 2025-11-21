@@ -9,7 +9,7 @@ import click
 import requests
 from bs4 import BeautifulSoup
 from ratelimit import RateLimitException, limits, sleep_and_retry
-from requests.exceptions import ConnectTimeout, ReadTimeout
+from requests.exceptions import ConnectionError, ConnectTimeout, ReadTimeout
 
 from salmon import cfg
 from salmon.constants import RELEASE_TYPES
@@ -98,34 +98,47 @@ class BaseGazelleApi:
 
         url = self.base_url + "/ajax.php"
         params = {"action": action, **kwargs}
-        try:
-            resp = await loop.run_in_executor(
-                None,
-                lambda: self.session.get(url, params=params, timeout=5, allow_redirects=False),
-            )
+        
+        while True:
+            try:
+                resp = await loop.run_in_executor(
+                    None,
+                    lambda: self.session.get(url, params=params, timeout=5, allow_redirects=False),
+                )
 
-            if cfg.upload.debug_tracker_connection:
-                click.secho("URL: ", fg="cyan", nl=False)
-                click.secho(url, fg="yellow")
+                if cfg.upload.debug_tracker_connection:
+                    click.secho("URL: ", fg="cyan", nl=False)
+                    click.secho(url, fg="yellow")
 
-                click.secho("Params: ", fg="cyan", nl=False)
-                click.secho(str(params), fg="yellow")
+                    click.secho("Params: ", fg="cyan", nl=False)
+                    click.secho(str(params), fg="yellow")
 
-                click.secho("Response: ", fg="cyan", nl=False)
-                click.secho(str(resp), fg="yellow")
+                    click.secho("Response: ", fg="cyan", nl=False)
+                    click.secho(str(resp), fg="yellow")
 
-                click.secho("Response Text: ", fg="cyan", nl=False)
-                click.secho(resp.text, fg="green")
+                    click.secho("Response Text: ", fg="cyan", nl=False)
+                    click.secho(resp.text, fg="green")
 
-            resp_json = resp.json()
-        except JSONDecodeError as err:
-            raise LoginError from err
-        except (ConnectTimeout, ReadTimeout):
-            click.secho(
-                "Connection to API timed out, try script again later. Gomen!",
-                fg="red",
-            )
-            raise click.Abort() from None
+                resp_json = resp.json()
+                break  # Success, exit retry loop
+            except JSONDecodeError as err:
+                raise LoginError from err
+            except ConnectionError as error:
+                click.secho(f"\nNetwork error while connecting to {self.site_string}:", fg="red")
+                click.secho(f"  {type(error).__name__}: {error}", fg="red")
+                retry = click.confirm(
+                    click.style("\nWould you like to retry the request?", fg="magenta", bold=True),
+                    default=True,
+                )
+                if not retry:
+                    click.secho("Aborting tracker request.", fg="yellow")
+                    raise click.Abort() from None
+            except (ConnectTimeout, ReadTimeout):
+                click.secho(
+                    "Connection to API timed out, try script again later. Gomen!",
+                    fg="red",
+                )
+                raise click.Abort() from None
 
         if resp_json["status"] != "success":
             if "rate limit" in resp_json["error"].lower():
@@ -145,29 +158,40 @@ class BaseGazelleApi:
         url = self.base_url + "/torrents.php"
         params = {"torrentid": torrentid}
 
-        try:
-            resp = await loop.run_in_executor(
-                None,
-                lambda: self.session.get(url, params=params, timeout=5, allow_redirects=False),
-            )
-            location = resp.headers.get("Location")
-            if location:
-                parsed = urlparse(location)
-                query = parse_qs(parsed.query)
-                torrent_group_id = query.get("id", [None])[0]
-                return torrent_group_id
-            else:
+        while True:
+            try:
+                resp = await loop.run_in_executor(
+                    None,
+                    lambda: self.session.get(url, params=params, timeout=5, allow_redirects=False),
+                )
+                location = resp.headers.get("Location")
+                if location:
+                    parsed = urlparse(location)
+                    query = parse_qs(parsed.query)
+                    torrent_group_id = query.get("id", [None])[0]
+                    return torrent_group_id
+                else:
+                    click.secho(
+                        "Couldn't retrieve torrent_group_id from torrent_id, no Redirect found!",
+                        fg="red",
+                    )
+                    raise click.Abort()
+            except ConnectionError as error:
+                click.secho(f"\nNetwork error while connecting to {self.site_string}:", fg="red")
+                click.secho(f"  {type(error).__name__}: {error}", fg="red")
+                retry = click.confirm(
+                    click.style("\nWould you like to retry the request?", fg="magenta", bold=True),
+                    default=True,
+                )
+                if not retry:
+                    click.secho("Aborting tracker request.", fg="yellow")
+                    raise click.Abort() from None
+            except (ConnectTimeout, ReadTimeout):
                 click.secho(
-                    "Couldn't retrieve torrent_group_id from torrent_id, no Redirect found!",
+                    "Connection to API timed out, try script again later. Gomen!",
                     fg="red",
                 )
-                raise click.Abort()
-        except (ConnectTimeout, ReadTimeout):
-            click.secho(
-                "Connection to API timed out, try script again later. Gomen!",
-                fg="red",
-            )
-            raise click.Abort() from None
+                raise click.Abort() from None
 
     async def get_request(self, id):
         """Get information about a request."""
