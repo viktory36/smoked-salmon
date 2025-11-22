@@ -147,12 +147,19 @@ def _is_valid_tracknumber(tracknumber_str):
     """Check if a string is a valid track number (integer or decimal like 24.1)."""
     if not tracknumber_str:
         return False
-    try:
-        # Try to parse as float first, which handles both integers and decimals
-        num = float(tracknumber_str)
-        return num > 0
-    except (ValueError, TypeError):
+    
+    # Check for simple decimal format (e.g., "24.1")
+    if '.' in tracknumber_str:
+        parts = tracknumber_str.split('.')
+        if len(parts) == 2 and parts[0] and parts[0].isdigit() and parts[1].isdigit():
+            return int(parts[0]) > 0 or int(parts[1]) > 0
         return False
+    
+    # Check for integer format
+    if tracknumber_str.isdigit():
+        return int(tracknumber_str) > 0
+    
+    return False
 
 
 def create_track_list(tags, overwrite):
