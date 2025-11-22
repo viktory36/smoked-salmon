@@ -143,18 +143,27 @@ def parse_encoding(format_, audio_info, supplied_encoding, prompt_encoding, hybr
     raise click.Abort
 
 
+def _is_valid_tracknumber(tracknumber_str):
+    """Check if a string is a valid track number (integer or decimal like 24.1)."""
+    if not tracknumber_str:
+        return False
+    try:
+        # Try to parse as float first, which handles both integers and decimals
+        num = float(tracknumber_str)
+        return num > 0
+    except (ValueError, TypeError):
+        return False
+
+
 def create_track_list(tags, overwrite):
     """Generate the track data from each track tag."""
     tracks = defaultdict(dict)
     for trackindex, (_, track) in enumerate(sorted(tags.items(), key=lambda k: _tracknumber_sort_key(k[0])), 1):
         discnumber = track.discnumber or "1"
+        tracknumber_raw = str(track.tracknumber).split("/")[0] if track.tracknumber else None
         tracknumber = (
-            str(track.tracknumber).split("/")[0]
-            if (
-                track.tracknumber
-                and str(track.tracknumber).split("/")[0].isdigit()
-                and int(str(track.tracknumber).split("/")[0]) > 0
-            )
+            tracknumber_raw
+            if _is_valid_tracknumber(tracknumber_raw)
             else str(trackindex)
         )
         tracks[discnumber][tracknumber] = {

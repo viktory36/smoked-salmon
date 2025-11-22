@@ -110,10 +110,23 @@ def flush_stdin():
 
 
 def str_to_int_if_int(string, zpad=False):
+    """
+    Convert string to int if it's a pure integer, or handle decimal track numbers.
+    For decimal numbers like "24.1", apply zero-padding to the integer part if requested.
+    """
     if string.isdigit():
         if zpad:
             return f"{int(string):02d}"
         return int(string)
+    
+    # Check if it's a decimal number (e.g., "24.1")
+    if '.' in string:
+        parts = string.split('.')
+        if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+            if zpad:
+                return f"{int(parts[0]):02d}.{parts[1]}"
+            return string
+    
     return string
 
 
