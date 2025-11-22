@@ -3,6 +3,7 @@ import sqlite3
 
 import click
 import pyperclip
+import requests.exceptions
 
 from salmon import cfg
 from salmon.common import AliasedCommands, commandgroup
@@ -113,8 +114,9 @@ def upload_cover(cover_path):
     if not cover_path:
         click.secho("\nNo Cover Image Path was provided to upload...", fg="red", nl=False)
         return None
-    click.secho(f"Uploading cover to {cfg.image.cover_uploader}...", fg="yellow", nl=False)
-    try:
+    
+    while True:
+        click.secho(f"Uploading cover to {cfg.image.cover_uploader}...", fg="yellow", nl=False)
         try:
             url = loop.run_until_complete(
                 loop.run_in_executor(
@@ -122,13 +124,53 @@ def upload_cover(cover_path):
                     lambda f=cover_path: HOSTS[cfg.image.cover_uploader].ImageUploader().upload_file(f)[0],
                 )
             )
+            click.secho(f" done! {url}", fg="yellow")
+            return url
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as error:
+            click.secho(" failed!", fg="red")
+            click.secho(f"\nNetwork error while uploading cover to {cfg.image.cover_uploader}:", fg="red")
+            click.secho(f"  {type(error).__name__}: {error}", fg="red")
+            retry = click.confirm(
+                click.style("\nWould you like to retry the upload?", fg="magenta", bold=True),
+                default=True,
+            )
+            if not retry:
+                click.secho("Aborting cover upload.", fg="yellow")
+                return None
+        except requests.exceptions.RequestException as error:
+            # Catch all other requests-related errors (HTTPError, SSLError, ProxyError, etc.)
+            click.secho(" failed!", fg="red")
+            click.secho(f"\nHTTP request error while uploading cover to {cfg.image.cover_uploader}:", fg="red")
+            click.secho(f"  {type(error).__name__}: {error}", fg="red")
+            retry = click.confirm(
+                click.style("\nWould you like to retry the upload?", fg="magenta", bold=True),
+                default=True,
+            )
+            if not retry:
+                click.secho("Aborting cover upload.", fg="yellow")
+                return None
         except (ImageUploadFailed, ValueError) as error:
-            click.secho(f"Image Upload Failed. {error}", fg="red")
-            raise ImageUploadFailed("Failed to upload image") from error
-    except ImageUploadFailed:
-        return click.secho(" failed :(", fg="red")
-    click.secho(f" done! {url}", fg="yellow")
-    return url
+            click.secho(" failed!", fg="red")
+            click.secho(f"\nImage Upload Failed: {error}", fg="red")
+            retry = click.confirm(
+                click.style("\nWould you like to retry the upload?", fg="magenta", bold=True),
+                default=True,
+            )
+            if not retry:
+                click.secho("Aborting cover upload.", fg="yellow")
+                return None
+        except Exception as error:
+            # Catch any other unexpected errors (should rarely happen)
+            click.secho(" failed!", fg="red")
+            click.secho("\nUnexpected error while uploading cover:", fg="red")
+            click.secho(f"  {type(error).__name__}: {error}", fg="red")
+            retry = click.confirm(
+                click.style("\nWould you like to retry the upload?", fg="magenta", bold=True),
+                default=True,
+            )
+            if not retry:
+                click.secho("Aborting cover upload.", fg="yellow")
+                return None
 
 
 def upload_spectrals(spectrals, uploader=HOSTS[cfg.image.specs_uploader], successful=None):
