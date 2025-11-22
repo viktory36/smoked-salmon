@@ -151,8 +151,9 @@ def _is_valid_tracknumber(tracknumber_str):
     # Check for simple decimal format (e.g., "24.1")
     if '.' in tracknumber_str:
         parts = tracknumber_str.split('.')
+        # Both parts must exist and be digits, and integer part must be > 0
         if len(parts) == 2 and parts[0] and parts[0].isdigit() and parts[1].isdigit():
-            return int(parts[0]) > 0 or int(parts[1]) > 0
+            return int(parts[0]) > 0
         return False
     
     # Check for integer format
