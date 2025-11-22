@@ -69,6 +69,12 @@ def up(filepaths, image_host):
             conn.commit()
             if cfg.upload.description.copy_uploaded_url_to_clipboard:
                 pyperclip.copy("\n".join(urls))
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as error:
+            click.secho(f"Image Upload Failed: Network error - {type(error).__name__}: {error}", fg="red")
+            raise ImageUploadFailed("Failed to upload image due to network error") from error
+        except requests.exceptions.RequestException as error:
+            click.secho(f"Image Upload Failed: HTTP request error - {type(error).__name__}: {error}", fg="red")
+            raise ImageUploadFailed("Failed to upload image due to HTTP request error") from error
         except (ImageUploadFailed, ValueError) as error:
             click.secho(f"Image Upload Failed. {error}", fg="red")
             raise ImageUploadFailed("Failed to upload image") from error
@@ -222,6 +228,12 @@ async def _spectrals_handler(spec_id, filename, spectral_paths, uploader):
         click.secho(f"Uploading spectrals for {filename}...", fg="yellow")
         tasks = [loop.run_in_executor(None, lambda f=f: uploader(f)[0]) for f in spectral_paths]
         return spec_id, await asyncio.gather(*tasks)
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+        click.secho(f"Failed to upload spectrals for {filename}: Network error - {type(e).__name__}: {e}", fg="red")
+        return spec_id, None
+    except requests.exceptions.RequestException as e:
+        click.secho(f"Failed to upload spectrals for {filename}: HTTP request error - {type(e).__name__}: {e}", fg="red")
+        return spec_id, None
     except ImageUploadFailed as e:
         click.secho(f"Failed to upload spectrals for {filename}: {e}", fg="red")
         return spec_id, None
