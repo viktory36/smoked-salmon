@@ -151,6 +151,8 @@ def _fix_format(metadata, keys, audio_info=None):
     - FLAC 24-192 for 192kHz
     - FLAC 24-96 for 96kHz
     - FLAC 24-48 for 48kHz
+    - FLAC 24-44.1 for 44.1kHz (preserves decimal)
+    - FLAC 24-88.2 for 88.2kHz (preserves decimal)
     For 16-bit FLAC files, uses just "FLAC"
     For MP3 files, uses just the encoding like "V0" or "320"
     
@@ -170,9 +172,17 @@ def _fix_format(metadata, keys, audio_info=None):
                 try:
                     # Sample rate is stored in Hz, convert to kHz for display
                     sample_rate = next(iter(audio_info.values()))["sample rate"]
-                    # Round to nearest kHz (e.g., 192000 Hz -> 192 kHz)
-                    sample_rate_khz = round(sample_rate / 1000)
-                    sub_metadata["format"] = f"FLAC 24-{sample_rate_khz}"
+                    # Convert to kHz and format appropriately
+                    # For 44.1 kHz (44100 Hz), preserve the decimal: 44.1
+                    # For round numbers like 192 kHz (192000 Hz), show as integer: 192
+                    sample_rate_khz = sample_rate / 1000
+                    if sample_rate_khz % 1 == 0:
+                        # Integer kHz value (e.g., 192.0 -> "192")
+                        sample_rate_str = str(int(sample_rate_khz))
+                    else:
+                        # Decimal kHz value (e.g., 44.1 -> "44.1")
+                        sample_rate_str = str(sample_rate_khz)
+                    sub_metadata["format"] = f"FLAC 24-{sample_rate_str}"
                 except (KeyError, StopIteration):
                     # Fallback if audio_info structure is unexpected
                     sub_metadata["format"] = "24bit FLAC"
