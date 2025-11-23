@@ -20,9 +20,12 @@ def convert_folder(path, bit_depth=16, sample_rate=None):
     new_path = _generate_conversion_path_name(path)
     if sample_rate and bit_depth == 24:
         # For 24-bit downconversion with sample rate, replace "FLAC" with "FLAC 24-XX"
+        # Format sample rate to preserve decimals (44.1, 88.2) or show as integer (192, 96)
+        sample_rate_khz = sample_rate / 1000
+        sample_rate_str = str(int(sample_rate_khz)) if sample_rate_khz % 1 == 0 else str(sample_rate_khz)
         new_path = re.sub(
             r"FLAC",
-            f"FLAC 24-{sample_rate / 1000:.0f}",
+            f"FLAC 24-{sample_rate_str}",
             new_path,
             flags=re.IGNORECASE,
         )
