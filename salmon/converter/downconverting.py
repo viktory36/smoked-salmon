@@ -52,8 +52,8 @@ def _generate_conversion_path_name(path):
     foldername = os.path.basename(path)
     # Handle new format: "FLAC 24-192" -> "FLAC" (for 16-bit conversion)
     # The sample rate part will be replaced later if doing 24-bit downconversion
-    if re.search(r"FLAC 24-[\d.]+", foldername, flags=re.IGNORECASE):
-        foldername = re.sub(r"FLAC 24-[\d.]+", "FLAC", foldername, flags=re.IGNORECASE)
+    if re.search(r"FLAC 24-\d+(?:\.\d+)?", foldername, flags=re.IGNORECASE):
+        foldername = re.sub(r"FLAC 24-\d+(?:\.\d+)?", "FLAC", foldername, flags=re.IGNORECASE)
     # Handle old format: "24bit FLAC" -> "FLAC"
     elif re.search("24 ?bit FLAC", foldername, flags=re.IGNORECASE):
         foldername = re.sub("24 ?bit FLAC", "FLAC", foldername, flags=re.IGNORECASE)
