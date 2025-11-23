@@ -44,9 +44,9 @@ def _generate_transcode_path_name(path, bitrate):
     foldername = os.path.basename(path)
     
     # Handle new format: "FLAC 24-192" or "FLAC" -> Replace with just bitrate (V0/320)
-    if re.search(r"FLAC 24-\d+", foldername, flags=re.IGNORECASE):
+    if re.search(r"FLAC 24-\d+(?:\.\d+)?", foldername, flags=re.IGNORECASE):
         # New format with sample rate: "FLAC 24-192" -> just the bitrate
-        foldername = re.sub(r"FLAC 24-\d+", bitrate, foldername, flags=re.IGNORECASE)
+        foldername = re.sub(r"FLAC 24-\d+(?:\.\d+)?", bitrate, foldername, flags=re.IGNORECASE)
     elif FLAC_FOLDER_REGEX.search(foldername):
         # Old format or simple FLAC
         if LOSSLESS_FOLDER_REGEX.search(foldername):
