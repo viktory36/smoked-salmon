@@ -222,6 +222,12 @@ async def _spectrals_handler(spec_id, filename, spectral_paths, uploader):
         click.secho(f"Uploading spectrals for {filename}...", fg="yellow")
         tasks = [loop.run_in_executor(None, lambda f=f: uploader(f)[0]) for f in spectral_paths]
         return spec_id, await asyncio.gather(*tasks)
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+        click.secho(f"Network error while uploading spectrals for {filename}: {type(e).__name__}: {e}", fg="red")
+        return spec_id, None
+    except requests.exceptions.RequestException as e:
+        click.secho(f"HTTP request error while uploading spectrals for {filename}: {type(e).__name__}: {e}", fg="red")
+        return spec_id, None
     except ImageUploadFailed as e:
         click.secho(f"Failed to upload spectrals for {filename}: {e}", fg="red")
         return spec_id, None
